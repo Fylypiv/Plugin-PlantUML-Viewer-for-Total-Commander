@@ -1,0 +1,80 @@
+@startuml
+!theme blueprint
+skinparam componentStyle uml2
+skinparam nodesep 40
+skinparam ranksep 50
+
+title Складна Архітектура Мікросервісів (Навантажувальний тест)
+
+package "Клієнтський рівень (Client Layer)" {
+  [Веб-додаток (React)] as WebApp
+  [Мобільний додаток (Flutter)] as MobileApp
+}
+
+node "Рівень маршрутизації" {
+  [API Gateway (Kong / NGINX)] as APIGw
+}
+
+package "Внутрішні Мікросервіси" {
+  [Сервіс Автентифікації] as AuthService
+  [Сервіс Користувачів] as UserService
+  [Каталог Товарів] as ProductService
+  [Сервіс Замовлень] as OrderService
+  [Управління Складом] as InventoryService
+  [Платіжний Сервіс] as PaymentService
+  [Сервіс Сповіщень] as NotificationService
+}
+
+database "Рівень Зберігання Даних" {
+  database "Auth DB (PostgreSQL)" as AuthDB
+  database "User DB (PostgreSQL)" as UserDB
+  database "Product DB (MongoDB)" as ProductDB
+  database "Order DB (PostgreSQL)" as OrderDB
+  database "Кеш (Redis)" as RedisCache
+}
+
+queue "Шина Повідомлень (Message Broker)" {
+  [Apache Kafka] as Kafka
+}
+
+cloud "Зовнішні API" {
+  [Stripe (Еквайринг)] as Stripe
+  [SendGrid (Email)] as SendGrid
+  [AWS S3 (Сховище)] as S3
+}
+
+' Зв'язки від клієнтів до API Gateway
+WebApp =down=> APIGw : HTTPS / REST
+MobileApp =down=> APIGw : HTTPS / REST
+
+' Зв'язки від API Gateway до мікросервісів
+APIGw -down-> AuthService : /auth
+APIGw -down-> UserService : /users
+APIGw -down-> ProductService : /products
+APIGw -down-> OrderService : /orders
+
+' Робота з базами даних
+AuthService -down-> AuthDB : R/W
+UserService -down-> UserDB : R/W
+ProductService -down-> ProductDB : R/W
+ProductService .down.> RedisCache : Перевірка кешу
+OrderService -down-> OrderDB : R/W
+
+' Взаємодія між сервісами (Синхронна)
+OrderService --> PaymentService : gRPC (Оплата)
+OrderService --> InventoryService : gRPC (Резерв)
+
+' Робота з зовнішніми сервісами
+PaymentService --> Stripe : Secure API (Транзакція)
+ProductService --> S3 : Завантаження картинок
+
+' Асинхронна взаємодія через Kafka
+OrderService -down-> Kafka : Публікація 'OrderCreated'
+PaymentService -down-> Kafka : Публікація 'PaymentProcessed'
+
+Kafka <-up- NotificationService : Підписка на події
+Kafka <-up- InventoryService : Підписка на 'OrderCreated'
+
+NotificationService -up-> SendGrid : Відправка Email / SMS
+
+@enduml

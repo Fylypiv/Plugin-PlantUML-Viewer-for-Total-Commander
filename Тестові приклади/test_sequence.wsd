@@ -1,0 +1,17 @@
+@startuml
+title Авторизація користувача
+actor "Клієнт" as Client
+participant "Сервер" as Auth
+database "БД" as DB
+
+Client -> Auth: POST /login
+activate Auth
+Auth -> DB: SELECT user
+DB --> Auth: Дані
+alt Пароль вірний
+    Auth --> Client: 200 OK (Token)
+else Пароль невірний
+    Auth --> Client: 401 Unauthorized
+end
+deactivate Auth
+@enduml

@@ -1,0 +1,18 @@
+@startuml
+skinparam backgroundColor #FEFEFE
+
+actor "Користувач" as user
+participant "Система\nАвтентифікації" as auth
+database "База\nДаних" as db
+
+user -> auth : Введення логіну та паролю
+activate auth
+
+auth -> db : Пошук користувача
+activate db
+db --> auth : Дані знайдено
+deactivate db
+
+auth --> user : Успішний вхід у систему
+deactivate auth
+@enduml
